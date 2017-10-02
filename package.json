@@ -61,9 +61,9 @@
     "plist": "^2.0.1",
     "tslint": "^3.15.1",
     "tslint-microsoft-contrib": "^2.0.12",
-    "typescript": "^2.0.3",
+    "typescript": "^2.5.3",
     "vsce": "^1.7.0",
-    "vscode": "^1.0.3"
+    "vscode": "^1.1.5"
   },
   "runtimeDependencies": [
     {
