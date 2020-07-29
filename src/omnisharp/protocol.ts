@@ -8,6 +8,7 @@ import * as path from 'path';
 export module Requests {
     export const AddToProject = '/addtoproject';
     export const AutoComplete = '/autocomplete';
+    export const AutoCompleteResolve = '/autocomplete/resolve';
     export const CodeCheck = '/codecheck';
     export const CodeFormat = '/codeformat';
     export const ChangeBuffer = '/changebuffer';
@@ -255,6 +256,41 @@ export interface SyntaxFeature {
     Data: string;
 }
 
+export interface CharacterSetModificationRule {
+    Characters: string[];
+    CharacterSetModificationRuleKind: string;
+}
+
+export module CharacterSetModificationRuleKind {
+    export const Add = 'Add';
+    export const Remove = 'Remove';
+    export const Replace = 'Replace';
+}
+
+export interface CompletionItemInfo {
+    DisplayText: string;
+    Description: string;
+    FilterText: string;
+    SortText: string;
+    Kind: string;
+    CommitCharacterRules: CharacterSetModificationRule[];
+    TextEdit: TextEdit;
+}
+
+export interface TextEdit {
+    NewText: string;
+    Range: V2.Range;
+}
+
+export interface CompletionItemResolveRequest extends Request {
+    DisplayText: string;
+    ItemIndex: number;
+}
+
+export interface CompletionItemResolveResponse {
+    Item: CompletionItemInfo;
+}
+
 export interface AutoCompleteRequest extends Request {
     WordToComplete: string;
     WantDocumentationForEveryCompletionResult?: boolean;
@@ -277,6 +313,7 @@ export interface AutoCompleteResponse {
     Kind: string;
     IsSuggestionMode: boolean;
     Preselect: boolean;
+    CompletionIndex: number;
 }
 
 export interface ProjectInformationResponse {

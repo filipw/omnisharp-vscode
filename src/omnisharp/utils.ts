@@ -11,6 +11,10 @@ export async function autoComplete(server: OmniSharpServer, request: protocol.Au
     return server.makeRequest<protocol.AutoCompleteResponse[]>(protocol.Requests.AutoComplete, request);
 }
 
+export async function resolveCompletionItem(server: OmniSharpServer, request: protocol.CompletionItemResolveRequest) {
+    return server.makeRequest<protocol.CompletionItemResolveResponse>(protocol.Requests.AutoCompleteResolve, request);
+}
+
 export async function codeCheck(server: OmniSharpServer, request: protocol.Request, token: vscode.CancellationToken) {
     return server.makeRequest<protocol.QuickFixResponse>(protocol.Requests.CodeCheck, request, token);
 }

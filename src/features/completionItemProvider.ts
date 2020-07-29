@@ -8,7 +8,13 @@ import AbstractSupport from './abstractProvider';
 import * as protocol from '../omnisharp/protocol';
 import * as serverUtils from '../omnisharp/utils';
 import { createRequest } from '../omnisharp/typeConversion';
-import { CompletionItemProvider, CompletionItem, CompletionItemKind, CompletionContext, CompletionTriggerKind, CancellationToken, TextDocument, Range, Position, CompletionList } from 'vscode';
+import { CompletionItemProvider, CompletionItem, CompletionItemKind, CompletionContext, CompletionTriggerKind, CancellationToken, TextDocument, Range, Position, CompletionList, TextEdit } from 'vscode';
+import { EOL } from 'os';
+
+export class ExtendedCompletionItem extends CompletionItem {
+    FileName: string;
+    CompletionIndex: number;
+}
 
 export default class OmniSharpCompletionItemProvider extends AbstractSupport implements CompletionItemProvider {
 
@@ -22,6 +28,52 @@ export default class OmniSharpCompletionItemProvider extends AbstractSupport imp
         '{', '}', '[', ']', '(', ')', '.', ',', ':',
         ';', '+', '-', '*', '/', '%', '&', '|', '^', '!',
         '~', '=', '<', '>', '?', '@', '#', '\'', '\"', '\\'];
+
+    public async resolveCompletionItem(item: CompletionItem, token: CancellationToken): Promise<CompletionItem> {
+        if (!(item instanceof ExtendedCompletionItem)) {
+            return null;
+        }
+        let extendedItem  = item as ExtendedCompletionItem;
+
+        let req: protocol.CompletionItemResolveRequest = {
+            FileName: extendedItem.FileName,
+            ItemIndex: extendedItem.CompletionIndex,
+            DisplayText: extendedItem.label
+        };
+
+        return serverUtils.resolveCompletionItem(this._server, req).then(response => {
+            // item.textEdit = new TextEdit(
+            //     new Range(
+            //         new Position(response.Item.TextEdit.Range.Start.Line, response.Item.TextEdit.Range.Start.Column), 
+            //         new Position(response.Item.TextEdit.Range.End.Line, response.Item.TextEdit.Range.End.Column)
+            //     ), response.Item.TextEdit.NewText);
+            item.filterText = response.Item.FilterText;
+            item.insertText = "";
+            item.additionalTextEdits = [TextEdit.replace(
+                new Range(
+                    new Position(response.Item.TextEdit.Range.Start.Line - 1, response.Item.TextEdit.Range.Start.Column - 1), 
+                    new Position(response.Item.TextEdit.Range.End.Line - 1, response.Item.TextEdit.Range.End.Line - 1)
+                ), response.Item.TextEdit.NewText)];
+            // item.range = new Range(
+            //              new Position(response.Item.TextEdit.Range.Start.Line, response.Item.TextEdit.Range.Start.Column), 
+            //              new Position(response.Item.TextEdit.Range.End.Line, response.Item.TextEdit.Range.End.Column)
+            //          );
+            // item.range = new Range(
+            //     new Position(response.Item.TextEdit.Range.End.Line - 1, 0),
+            //     new Position(response.Item.TextEdit.Range.End.Line - 1, 1000)
+            // );
+            // let lines = response.Item.TextEdit.NewText.split(EOL);
+            // let linesWithoutCurrent = lines.slice(0, lines.length - 2);
+
+            // works!!!
+            // item.additionalTextEdits = [TextEdit.replace(
+            //     new Range(
+            //         new Position(response.Item.TextEdit.Range.Start.Line - 1, response.Item.TextEdit.Range.Start.Column - 1), 
+            //         new Position(response.Item.TextEdit.Range.End.Line - 1, item.range.start.character - 1)
+            //     ), response.Item.TextEdit.NewText.substring(0, response.Item.TextEdit.NewText.length - 1 - item.label.length))];
+            return item;
+        });
+    }
 
     public async provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): Promise<CompletionList> {
 
@@ -52,8 +104,10 @@ export default class OmniSharpCompletionItemProvider extends AbstractSupport imp
             // transform AutoCompleteResponse to CompletionItem and
             // group by code snippet
             for (let response of responses) {
-                let completion = new CompletionItem(response.CompletionText);
-
+                let completion = new ExtendedCompletionItem(response.CompletionText);
+                completion.FileName = document.fileName;
+                completion.CompletionIndex = response.CompletionIndex;
+                
                 completion.detail = response.ReturnType
                     ? `${response.ReturnType} ${response.DisplayText}`
                     : response.DisplayText;
@@ -61,11 +115,11 @@ export default class OmniSharpCompletionItemProvider extends AbstractSupport imp
                 completion.documentation = extractSummaryText(response.Description);
                 completion.kind = _kinds[response.Kind] || CompletionItemKind.Property;
                 completion.insertText = response.CompletionText.replace(/<>/g, '');
-
+                completion.label = response.CompletionText.replace(/<>/g, '');;
+                //completion.range = range;
                 completion.commitCharacters = response.IsSuggestionMode
                     ? OmniSharpCompletionItemProvider.CommitCharactersWithoutSpace
                     : OmniSharpCompletionItemProvider.AllCommitCharacters;
-
                 completion.preselect = response.Preselect;
 
                 let completionSet = completions[completion.label];
